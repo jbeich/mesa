@@ -139,7 +139,8 @@ inline unsigned char _BitScanReverse64(unsigned long* Index, uint64_t Mask)
 }
 #endif
 
-#elif defined(__APPLE__) || defined(FORCE_LINUX) || defined(__linux__) || defined(__gnu_linux__)
+#elif defined(FORCE_LINUX) || defined(__linux__) || defined(__gnu_linux__) || \
+   defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
 #define SWR_API
 #define SWR_VISIBLE __attribute__((visibility("default")))

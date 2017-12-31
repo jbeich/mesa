@@ -35,6 +35,8 @@
 
 #if defined(PIPE_CC_MSVC) // portable thread yield
    #define sched_yield SwitchToThread
+#elif defined(__FreeBSD__) || defined(__DragonFly__)
+   #include <sched.h>
 #endif
 
 /*

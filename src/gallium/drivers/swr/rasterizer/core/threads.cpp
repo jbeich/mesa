@@ -30,13 +30,14 @@
 #include <fstream>
 #include <string>
 
-#if defined(__linux__) || defined(__gnu_linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__gnu_linux__) || defined(__APPLE__) || \
+   defined(__FreeBSD__) || defined(__DragonFly__)
 #include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #endif
@@ -218,7 +219,7 @@ void CalculateProcessorTopology(CPUNumaNodes& out_nodes, uint32_t& out_numThread
         }
     }
 
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
 
     auto numProcessors  = 0;
     auto numCores       = 0;
@@ -227,6 +228,7 @@ void CalculateProcessorTopology(CPUNumaNodes& out_nodes, uint32_t& out_numThread
     int    value;
     size_t size = sizeof(value);
 
+#if defined(__APPLE__)
     int result = sysctlbyname("hw.packages", &value, &size, NULL, 0);
     SWR_ASSERT(result == 0);
     numPhysicalIds = value;
@@ -238,6 +240,13 @@ void CalculateProcessorTopology(CPUNumaNodes& out_nodes, uint32_t& out_numThread
     result = sysctlbyname("hw.physicalcpu", &value, &size, NULL, 0);
     SWR_ASSERT(result == 0);
     numCores = value;
+#else
+    // NOTE: FreeBSD offers detailed info as kern.sched.topology_spec, but that requires parsing XML
+    int result = sysctlbyname("hw.ncpu", &value, &size, NULL, 0);
+    SWR_ASSERT(result == 0);
+    numPhysicalIds = 1;
+    numProcessors = numCores = value;
+#endif
 
     out_nodes.resize(numPhysicalIds);
 
