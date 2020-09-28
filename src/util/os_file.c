@@ -211,6 +211,95 @@ os_same_file_description(int fd1, int fd2)
    return syscall(SYS_kcmp, pid, pid, KCMP_FILE, fd1, fd2);
 }
 
+#elif DETECT_OS_BSD
+
+#include "macros.h" /* ARRAY_SIZE */
+
+#include <sys/sysctl.h>
+#if DETECT_OS_DRAGONFLY
+#include <sys/kinfo.h>
+#elif DETECT_OS_FREEBSD
+#include <sys/file.h>
+#endif
+
+#if DETECT_OS_DRAGONFLY
+typedef struct kinfo_file kfile_t;
+typedef void *kfile_addr_t;
+#define KFILE_PID(x) x.f_pid
+#define KFILE_FD(x) x.f_fd
+#define KFILE_ADDR(x) x.f_file
+#elif DETECT_OS_FREEBSD
+typedef struct xfile kfile_t;
+#if __FreeBSD__ < 12
+/* r335979 broke `struct xfile` ABI, so at least make it compile */
+typedef void *kvaddr_t;
+#endif
+typedef kvaddr_t kfile_addr_t;
+#define KFILE_PID(x) x.xf_pid
+#define KFILE_FD(x) x.xf_fd
+#define KFILE_ADDR(x) x.xf_file
+#elif DETECT_OS_NETBSD
+#undef KERN_FILE
+#define KERN_FILE KERN_FILE2
+typedef struct kinfo_file kfile_t;
+typedef uint64_t kfile_addr_t;
+#define KFILE_FD(x) x.ki_fd
+#define KFILE_ADDR(x) x.ki_fileaddr
+#elif DETECT_OS_OPENBSD
+typedef struct kinfo_file kfile_t;
+typedef uint64_t kfile_addr_t;
+#define KFILE_FD(x) x.fd_fd
+#define KFILE_ADDR(x) x.f_fileaddr
+#endif
+
+int
+os_same_file_description(int fd1, int fd2)
+{
+   /* Same file descriptor trivially implies same file description */
+   if (fd1 == fd2)
+      return 0;
+
+   pid_t pid = getpid();
+   int mib[] = {
+     CTL_KERN,
+     KERN_FILE,
+#if DETECT_OS_NETBSD || DETECT_OS_OPENBSD
+     KERN_FILE_BYPID,
+     pid,
+     sizeof(kfile_t),
+     0,
+#endif
+   };
+   size_t len;
+   if (sysctl(mib, ARRAY_SIZE(mib), NULL, &len, NULL, 0))
+      return -1;
+   kfile_t *kf = malloc(len);
+   int count = len / sizeof(*kf);
+#if DETECT_OS_NETBSD || DETECT_OS_OPENBSD
+   mib[5] = count;
+#endif
+   if (sysctl(mib, ARRAY_SIZE(mib), kf, &len, NULL, 0))
+      return -1;
+
+   kfile_addr_t fd1_addr = 0, fd2_addr = 0;
+   for (int i = 0; i < count; i++) {
+#if DETECT_OS_DRAGONFLY || DETECT_OS_FREEBSD
+      if (pid != KFILE_PID(kf[i]))
+         continue;
+#endif
+      if (fd1 == KFILE_FD(kf[i]))
+         fd1_addr = KFILE_ADDR(kf[i]);
+      if (fd2 == KFILE_FD(kf[i]))
+         fd2_addr = KFILE_ADDR(kf[i]);
+   }
+   free(kf);
+
+   if (fd1_addr == 0 || fd2_addr == 0)
+       return -1;
+
+   return (fd1_addr < fd2_addr) | ((fd1_addr > fd2_addr) << 1);
+}
+
 #else
 
 int
