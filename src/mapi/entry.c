@@ -45,15 +45,15 @@
 #define ENTRY_CURRENT_TABLE_GET U_STRINGIFY(u_current_get_table_internal)
 #endif
 
-#if defined(USE_X86_ASM) && defined(__GNUC__)
+#if defined(USE_X86_ASM) && defined(__GNUC__) && !DETECT_OS_FREEBSD
 #   ifdef USE_ELF_TLS
 #      include "entry_x86_tls.h"
 #   else                 
 #      include "entry_x86_tsd.h"
 #   endif
-#elif defined(USE_X86_64_ASM) && defined(__GNUC__) && defined(USE_ELF_TLS)
+#elif defined(USE_X86_64_ASM) && defined(__GNUC__) && defined(USE_ELF_TLS) && !DETECT_OS_FREEBSD
 #   include "entry_x86-64_tls.h"
-#elif defined(USE_PPC64LE_ASM) && defined(__GNUC__) && UTIL_ARCH_LITTLE_ENDIAN
+#elif defined(USE_PPC64LE_ASM) && defined(__GNUC__) && UTIL_ARCH_LITTLE_ENDIAN && !DETECT_OS_FREEBSD
 #   ifdef USE_ELF_TLS
 #      include "entry_ppc64le_tls.h"
 #   else

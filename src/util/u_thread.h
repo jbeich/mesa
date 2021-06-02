@@ -77,7 +77,7 @@
  */
 #ifdef _MSC_VER
 #define __THREAD_INITIAL_EXEC __declspec(thread)
-#elif defined(ANDROID)
+#elif defined(ANDROID) || DETECT_OS_FREEBSD
 /* Android 29 gained ELF TLS support, but it doesn't support initial-exec and
  * it will throw:
  *
