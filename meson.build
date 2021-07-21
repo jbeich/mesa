@@ -1861,7 +1861,11 @@ if _libunwind != 'disabled' and not with_platform_android
     pre_args += '-DHAVE_LIBUNWIND'
   endif
 else
-  dep_unwind = null_dep
+  if cc.check_header('execinfo.h') and not cc.has_function('backtrace_symbols')
+    dep_unwind = cc.find_library('execinfo')
+  else
+    dep_unwind = null_dep
+  endif
 endif
 
 if with_osmesa
